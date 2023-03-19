@@ -48,11 +48,11 @@ uint8_t effectId = 0;
 String wifi_ssid = "";
 String wifi_password ="";
 
-String mqtt_client_id = "esp32sl_totoro";
-String mqtt_server = "m4.wqtt.ru";
-uint16_t mqtt_server_port = 7174;
-String mqtt_server_user = "u_M31GZB";
-String mqtt_server_password = "pXtRs7BF";
+String mqtt_client_id = "";
+String mqtt_server = "";
+uint16_t mqtt_server_port = 65535;
+String mqtt_server_user = "";
+String mqtt_server_password = "";
 
 bool useTopicPrefix = false;
 String mqtt_topic_prefix = "/" + mqtt_server_user + "/";
