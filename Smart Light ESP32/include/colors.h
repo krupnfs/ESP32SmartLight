@@ -4,9 +4,9 @@ typedef enum {
     /// 1900 Kelvin
     Candle=0xFF8400,//0xFF9329 /* 1900 K, 255, 147, 41 */,
     /// 2600 Kelvin
-    Tungsten40W=0xFF9329,//0xFFC58F /* 2600 K, 255, 197, 143 */,
+    Tungsten40W=0xff9012,//0xFFC58F /* 2600 K, 255, 197, 143 */,
     /// 2850 Kelvin
-    Tungsten100W=0xFFA34F,//0xFFD6AA /* 2850 K, 255, 214, 170 */,
+    Tungsten100W=0xFF9329,//0xFFD6AA /* 2850 K, 255, 214, 170 */,
     /// 3200 Kelvin
     Halogen=0xFFAC63,//0xFFF1E0 /* 3200 K, 255, 241, 224 */,
     /// 5200 Kelvin

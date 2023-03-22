@@ -98,14 +98,14 @@ const char index_html[] PROGMEM = R"rawliteral(
 			<h3>Температура, К</h3>
 			<form>
 				<div class="brightness-group">
-					<input type="radio" id="temp1" name="temp_selector" onclick="clickTemp(0)" %TEMP1%><label class="brightness_radio" for="temp1">1</label>
-					<input type="radio" id="temp2" name="temp_selector" onclick="clickTemp(1)" %TEMP2%><label class="brightness_radio" for="temp2">2</label>
-					<input type="radio" id="temp3" name="temp_selector" onclick="clickTemp(2)" %TEMP3%><label class="brightness_radio" for="temp3">3</label>
-					<input type="radio" id="temp4" name="temp_selector" onclick="clickTemp(3)" %TEMP4%><label class="brightness_radio" for="temp4">4</label>
-					<input type="radio" id="temp5" name="temp_selector" onclick="clickTemp(4)" %TEMP5%><label class="brightness_radio" for="temp5">5</label>
-					<input type="radio" id="temp6" name="temp_selector" onclick="clickTemp(5)" %TEMP6%><label class="brightness_radio" for="temp6">6</label>
-					<input type="radio" id="temp7" name="temp_selector" onclick="clickTemp(6)" %TEMP7%><label class="brightness_radio" for="temp7">7</label>
-					<input type="radio" id="temp8" name="temp_selector" onclick="clickTemp(7)" %TEMP8%><label class="brightness_radio" for="temp8">8</label>
+					<input type="radio" id="temp0" name="temp_selector" onclick="clickTemp(0)" %TEMP0%><label class="brightness_radio" for="temp0">1</label>
+					<input type="radio" id="temp1" name="temp_selector" onclick="clickTemp(1)" %TEMP1%><label class="brightness_radio" for="temp1">2</label>
+					<input type="radio" id="temp2" name="temp_selector" onclick="clickTemp(2)" %TEMP2%><label class="brightness_radio" for="temp2">3</label>
+					<input type="radio" id="temp3" name="temp_selector" onclick="clickTemp(3)" %TEMP3%><label class="brightness_radio" for="temp3">4</label>
+					<input type="radio" id="temp4" name="temp_selector" onclick="clickTemp(4)" %TEMP4%><label class="brightness_radio" for="temp4">5</label>
+					<input type="radio" id="temp5" name="temp_selector" onclick="clickTemp(5)" %TEMP5%><label class="brightness_radio" for="temp5">6</label>
+					<input type="radio" id="temp6" name="temp_selector" onclick="clickTemp(6)" %TEMP6%><label class="brightness_radio" for="temp6">7</label>
+					<input type="radio" id="temp7" name="temp_selector" onclick="clickTemp(7)" %TEMP7%><label class="brightness_radio" for="temp7">8</label>
 				</div>
 			</form>
 		</div>

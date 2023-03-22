@@ -50,7 +50,10 @@ const char* PROGMEM topicSetTemperatureNightLight = "esp32sl/nightlight/temperat
 
 const char* PROGMEM topicReadLightPower = "esp32sl/readlight/power";
 const char* PROGMEM topicGetReadLightStatus = "esp32sl/readlight/power/state";
+
 const char* PROGMEM topicFlashLightPower = "esp32sl/flashlight/power";
 const char* PROGMEM topicGetFlashLightStatus = "esp32sl/flashlight/power/state";
+const char* PROGMEM topicSetEffectFlashLight = "esp32sl/flashlight/effect";
+const char* PROGMEM topicGetEffectFlashLight = "esp32sl/flashlight/effect/state";
 
 

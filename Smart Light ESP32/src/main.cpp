@@ -53,6 +53,13 @@ String createSwitch(uint8_t settingId)
   return formatString;
 }
 
+void ResetShowingFlags()
+{
+  additionalLightShowing = false;
+  readLightWarmShowing = false;
+  readLightColdShowing = false;
+}
+
 String processor(const String& var)
 {
   if(var == "STYLECSS") {
@@ -124,49 +131,16 @@ String processor(const String& var)
     }
   }
 
-  // if(var == "BR1" && brightness == 1)
-  //   return "checked";
-  // if(var == "BR2" && brightness == 2)
-  //   return "checked";
-  // if(var == "BR3" && brightness == 3)
-  //   return "checked";
-  // if(var == "BR4" && brightness == 4)
-  //   return "checked";
-  // if(var == "BR5" && brightness == 5)
-  //   return "checked";
-  // if(var == "BR6" && brightness == 6)
-  //   return "checked";
-  // if(var == "BR7" && brightness == 7)
-  //   return "checked";
-  // if(var == "BR8" && brightness == 8)
-  //   return "checked";
 #pragma endregion
   if(var.indexOf("TEMP") != -1)
   {
     for (int i = 0; i <= 7; i++)
     {
       String tempName = "TEMP" + String(i);
-      if(var == tempName && brightness == i)
+      if(var == tempName && temperature == i)
         return "checked";
     }
   }
-
-  // if(var == "TEMP1" && temperature == 0)
-  //   return "checked";
-  // if(var == "TEMP2" && temperature == 1)
-  //   return "checked";
-  // if(var == "TEMP3" && temperature == 2)
-  //   return "checked";
-  // if(var == "TEMP4" && temperature == 3)
-  //   return "checked";
-  // if(var == "TEMP5" && temperature == 4)
-  //   return "checked";
-  // if(var == "TEMP6" && temperature == 5)
-  //   return "checked";
-  // if(var == "TEMP7" && temperature == 6)
-  //   return "checked";
-  // if(var == "TEMP8" && temperature == 7)
-  //   return "checked";
 
   if(var == "WARM_LEVEL")
     return String(warm_value);
@@ -206,6 +180,7 @@ void setOff()
     needBreakEffect = true;
   LEDS_ON = false;
   onOffChanged = true;
+  ResetShowingFlags();
 }
 
 void setOn()
@@ -221,13 +196,16 @@ void setMode(int mode)
     case READ_MODE:
       needBreakEffect = true;
       light_mode = READ_MODE;
+      ResetShowingFlags();
       break;
     case NIGHT_LIGHT:
       needBreakEffect = true;
       light_mode = NIGHT_LIGHT; 
+      ResetShowingFlags();
       break;
     case RAINBOW_MODE:
       light_mode = RAINBOW_MODE; 
+      ResetShowingFlags();
       break;
   }
   lightModeChanged = true;
@@ -299,6 +277,17 @@ void readSettings()
     enableAdditionNightLight = EEPROM.read(ADDITION_ENABLE_NIGHTLIGHT_ADDRESS);
     Serial.println("enableAdditionNightLight = " + String(enableAdditionNightLight));
     //EEPROM.commit();
+}
+
+void setEffectId(int value)
+{
+  effectId = value;
+  if(effectId > FX_COUNT)
+    effectId = FX_COUNT;
+  if (effectId < 0)
+    effectId = 0;
+  effectIdChanged = true;
+    needBreakEffect = true;
 }
 
 void decrementEffect()
@@ -421,12 +410,14 @@ void setWarmLevel(int value)
 {
   warm_value = value;
   warmChanged = true;
+  readLightWarmShowing = false;
 }
 
 void setColdLevel(int value)
 {
   cold_value = value;
   coldChanged = true;
+  readLightColdShowing = false;
 }
 #pragma endregion
 
@@ -446,6 +437,16 @@ void setOffFlashLight()
 String getFlashLightState()
 {
   return String((light_mode == RAINBOW_MODE && LEDS_ON));
+}
+
+void setEffectIdFlashLight(int value)
+{
+  setEffectId(value);
+}
+
+int getEffectIdFlashLight()
+{
+  return effectId;
 }
 #pragma endregion
 
@@ -503,6 +504,10 @@ bool switchAdditionalNL()
 {
   enableAdditionNightLight = !enableAdditionNightLight;
   enableAdditionNightLightChanged = true;
+  if (enableAdditionNightLight)
+    offReadLeds();
+  ResetShowingFlags();
+  //additionalLightShowing = false;
   return enableAdditionNightLight;
 }
 
@@ -684,6 +689,11 @@ void onMqttMessageReceived(char *topic, byte *payload, unsigned int length)
     else
       setOffFlashLight(); 
   }
+  else if(String(topic).indexOf(topicSetEffectFlashLight) != -1)
+  {
+    Serial.println("SetEffect " + mqtt_message.toInt());
+    setEffectIdFlashLight(mqtt_message.toInt());
+  }
   else if(String(topic).indexOf(topicReadLightPower) != -1) 
   {
     if(mqtt_message == "1")
@@ -699,6 +709,7 @@ void publishStates()
   mqttClient.publish(topicGetReadLightStatus, String(getReadLightState()).c_str(), retain_flag);
   mqttClient.publish(topicGetFlashLightStatus, String(getFlashLightState()).c_str(), retain_flag);
   mqttClient.publish(topicGetNightLightBrightness, String(getBrightnessPercent()).c_str(), retain_flag);
+  mqttClient.publish(topicGetEffectFlashLight, String(getEffectIdFlashLight()).c_str(), retain_flag);
 }
 #pragma endregion
 
@@ -1009,18 +1020,40 @@ void loop()
         offReadLeds();
         break;
       case READ_MODE:
-      if(enableAdditionNightLight)
-          drawNightLight(temperature, brightness, mainStrip);
+        if(enableAdditionNightLight)
+        {
+          if(!additionalLightShowing)
+          {
+            drawNightLight(temperature, brightness, mainStrip);
+            additionalLightShowing = true;
+          }
+        }
         else
+        {
           clearLedStrips(mainStrip, volumeStrip);
-        ledcWrite(LED_WARM_CHANNEL, 256 / 8 * warm_value);
-        ledcWrite(LED_COLD_CHANNEL, 1024 / 8 * cold_value);
+          additionalLightShowing = false;
+        }
+        if(!readLightWarmShowing)
+        {
+          delay(100);
+          ledcWrite(LED_WARM_CHANNEL, 256 / 8 * warm_value);
+          readLightWarmShowing = true;
+        }
+        if(!readLightColdShowing)
+        {
+          delay(100);
+          ledcWrite(LED_COLD_CHANNEL, 256 / 8 * cold_value);
+          readLightColdShowing = true;
+        }
         break;
     }
   }
   else
   {
     offReadLeds();
+    readLightColdShowing = false;
+    readLightWarmShowing = false;
+    additionalLightShowing = false;
     if(!showConnected)
       clearLedStrips(mainStrip, volumeStrip);
   }
