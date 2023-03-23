@@ -13,7 +13,7 @@
 #define WARM_LED_PIN 14
 #define COLD_LED_PIN 27
 
-#define PWM_FREQ 5000
+#define PWM_FREQ 30000
 #define LED_WARM_CHANNEL 0
 #define LED_COLD_CHANNEL 1
 #define RESOLUTION_WARM 8

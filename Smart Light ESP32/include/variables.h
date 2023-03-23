@@ -43,6 +43,10 @@ uint8_t cold_value = 4;
 
 bool enableAdditionNightLight = false;
 
+bool additionalLightShowing = false;
+bool readLightWarmShowing = false;
+bool readLightColdShowing = false;
+
 uint8_t effectId = 0;
 
 String wifi_ssid = "";
