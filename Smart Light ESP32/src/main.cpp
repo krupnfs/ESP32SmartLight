@@ -779,7 +779,9 @@ void setup()
   WiFi.onEvent(Get_IPAddress, ARDUINO_EVENT_WIFI_STA_GOT_IP);
   WiFi.onEvent(Wifi_disconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
-  WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
+  Serial.println("WiFi SSID: " + wifi_ssid);
+  if(wifi_ssid != "" && wifi_ssid.length() < 33)
+    WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
 #pragma endregion
 
 #pragma region Server
