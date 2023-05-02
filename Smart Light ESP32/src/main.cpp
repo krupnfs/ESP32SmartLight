@@ -22,6 +22,7 @@
 #include "index_html.h"
 
 AsyncWebServer server(80);
+AsyncEventSource events("/events");
 
 Adafruit_NeoPixel volumeStrip = Adafruit_NeoPixel(NUM_VOLUME_LEDS, VOLUME_LED_DATA_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel mainStrip = Adafruit_NeoPixel(NUM_MAIN_LEDS, MAIN_LED_DATA_PIN, NEO_GRB + NEO_KHZ800);
@@ -62,6 +63,16 @@ void ResetShowingFlags()
 
 String processor(const String& var)
 {
+  if(var == "DEVICE_TOPIC")
+    return device_topic;
+  if(var == "MQTT_SERVER")
+    return mqtt_server;
+  if(var == "MQTT_SERVER_PORT")
+    return String(mqtt_server_port);
+  if(var == "MQTT_USER")
+    return mqtt_server_user;
+  if(var == "MQTT_PASSWORD")
+    return mqtt_server_password;
   if(var == "STYLECSS") {
     Serial.println("return index_css");
     return index_css;
@@ -171,6 +182,12 @@ String processor(const String& var)
 #pragma endregion
   return "";
 }
+
+void LogToSerialAndSendClients(String message)
+{
+  Serial.println(message);
+  events.send(String(message).c_str(), NULL, millis());
+}
 #pragma endregion
 
 #pragma region Basic Functions
@@ -216,6 +233,38 @@ void setBrightness(int value)
   brightness = value;
   brightnessChanged = true;
 }
+
+// void updateMqttTopics()
+// {
+//   topic = device_topic + "/#";
+//   topicSetNightLightPower = device_topic + "/nightlight/power";
+//   topicGetNightLightPower = device_topic + "/nightlight/power/state";
+//   topicSetNightLightBrightness = device_topic + "/nightlight/brightness";
+//   topicGetNightLightBrightness = device_topic + "/nightlight/brightness/state";
+//   topicSetNightLightTemperature = device_topic + "/nightlight/temperature";
+//   topicGetNightLightTemperature = device_topic + "/nightlight/temperature/state";
+
+//   topicSetReadLightPower = device_topic + "/readlight/power";
+//   topicGetReadLightPower = device_topic + "/readlight/power/state";
+//   topicSetWarmChannel = device_topic + "/readlight/warmchannel";
+//   topicGetWarmChannel = device_topic + "/readlight/warmchannel/state";
+//   topicSetColdChannel = device_topic + "/readlight/coldchannel";
+//   topicGetColdChannel = device_topic + "/readlight/coldchannel/state";
+//   topicSetAdditionalLight = device_topic + "/readlight/additionallight";
+//   topicGetAdditionalLight = device_topic + "/readlight/additionallight/state";
+
+//   topicSetFlashLightPower = device_topic + "/flashlight/power";
+//   topicGetFlashLightPower = device_topic + "/flashlight/power/state";
+//   topicSetEffectFlashLight = device_topic + "/flashlight/effect";
+//   topicGetEffectFlashLight = device_topic + "/flashlight/effect/state";
+
+//   // topicComboSetPower = device_topic + "/combo/setpower";
+//   // topicComboGetPower = device_topic + "/combo/getpower/state";
+//   // topicComboSetMode = device_topic + "/combo/setmode";
+//   // topicComboGetMode = device_topic + "/combo/getmode/state";
+//   // topicComboSetBrightness = device_topic + "/combo/setbrightness/";
+//   // topicComboGetBrightness = device_topic + "/combo/getbrightness/state";
+// }
 
 void readSettings()
 {
@@ -276,6 +325,12 @@ void readSettings()
     Serial.println("cold_value = " + String(cold_value));
     enableAdditionNightLight = EEPROM.read(ADDITION_ENABLE_NIGHTLIGHT_ADDRESS);
     Serial.println("enableAdditionNightLight = " + String(enableAdditionNightLight));
+    device_topic = EEPROM.readString(DEVICE_TOPIC_ADDRESS);
+    mqtt_server = EEPROM.readString(MQTT_SERVER_ADDRESS);
+    mqtt_server_port = EEPROM.readShort(MQTT_SERVER_PORT_ADDRESS);
+    mqtt_server_user = EEPROM.readString(MQTT_SERVER_USER_ADDRESS);
+    mqtt_server_password = EEPROM.readString(MQTT_SERVER_PASSWORD_ADDRESS);
+    //updateMqttTopics();
     //EEPROM.commit();
 }
 
@@ -292,7 +347,7 @@ void setEffectId(int value)
 
 void decrementEffect()
 {
-  Serial.println("effect--");
+  //Serial.println("effect--");
     if(effectId == 0) 
       effectId = FX_COUNT - 1;
     else
@@ -303,7 +358,7 @@ void decrementEffect()
 
 void incrementEffect()
 {
-  Serial.println("effect++");
+  //Serial.println("effect++");
   effectId++; if(effectId >= FX_COUNT) effectId = 0;
   effectIdChanged = true;
   needBreakEffect = true;
@@ -340,7 +395,7 @@ void updateVolumeStrip()
         drawTemperature(temperature, brightness, volumeStrip);
       break;
     case READ_MODE:
-      break;;
+      break;
     case RAINBOW_MODE:
       clearLedStrip(volumeStrip);
       break;
@@ -386,6 +441,11 @@ void setTemperature(int value)
   temperature = value;
   temperatureChanged = true;
 }
+
+int getTemperature()
+{
+  return temperature;
+}
 #pragma endregion
 
 #pragma region ReadLight Functions
@@ -413,11 +473,31 @@ void setWarmLevel(int value)
   readLightWarmShowing = false;
 }
 
+void SetWarmLevelPercent(int value)
+{
+  setWarmLevel(((float)value / (float)100) * 7);
+}
+
+int getWarmLevelPercent()
+{
+  return ((float)warm_value / (float)7 * 100);
+}
+
 void setColdLevel(int value)
 {
   cold_value = value;
   coldChanged = true;
   readLightColdShowing = false;
+}
+
+void SetColdLevelPercent(int value)
+{
+  setColdLevel(((float)value / (float)100) * 7);
+}
+
+int getColdLevelPercent()
+{
+  return ((float)cold_value / (float)7 * 100);
 }
 #pragma endregion
 
@@ -453,7 +533,7 @@ int getEffectIdFlashLight()
 #pragma region Button Functions
 void clickDownButton()
 {
-  Serial.println("click down");
+  //Serial.println("click down");
   if(light_mode == RAINBOW_MODE)
     decrementEffect();
   else if(light_mode == NIGHT_LIGHT)
@@ -473,7 +553,7 @@ void clickDownButton()
 
 void clickUpButton()
 {
-  Serial.println("click up");
+  //Serial.println("click up");
   if(light_mode == RAINBOW_MODE)
     incrementEffect();
   else if(light_mode == NIGHT_LIGHT)
@@ -509,6 +589,23 @@ bool switchAdditionalNL()
   ResetShowingFlags();
   //additionalLightShowing = false;
   return enableAdditionNightLight;
+}
+
+void setAdditionalNL(int value)
+{
+  enableAdditionNightLight = (bool)value;
+  enableAdditionNightLightChanged = true;
+  if (enableAdditionNightLight)
+    offReadLeds();
+  ResetShowingFlags();
+}
+
+int getAdditionalNL()
+{
+  if(enableAdditionNightLight)
+    return 1;
+  else
+    return 0;
 }
 
 void holdDownButton()
@@ -552,20 +649,20 @@ void IRAM_ATTR clickOnOffButtonISR()
   {
     onOffMillis = millis();
     onOffPressed = true;
-    Serial.println("OnOff pressed");
+    //Serial.println("OnOff pressed");
   }
   else if (onOffPressed && (digitalRead(ON_OFF_PIN) == LOW))
   {
     onOffPressed = false;
-    Serial.println("OnOff release");
+    //Serial.println("OnOff release");
     if(millis() - onOffMillis <= clickTimeOut)
     {
-      Serial.println("OnOff Click");
+      //Serial.println("OnOff Click");
       clickOnOff();
     }
     else
     {
-      Serial.println("OnOff Hold");
+      //Serial.println("OnOff Hold");
       holdOnOff();
     }
   }
@@ -577,20 +674,20 @@ void IRAM_ATTR clickDownButtonISR()
   {
     downMillis = millis();
     downPressed = true;
-    Serial.println("DOWN pressed");
+    //Serial.println("DOWN pressed");
   }
   else if (downPressed && (digitalRead(VOLUME_DOWN_PIN) == LOW))
   {
     downPressed = false;
-    Serial.println("DOWN release");
+    //Serial.println("DOWN release");
     if(millis() - downMillis <= clickTimeOut)
     {
-      Serial.println("DOWN Click");
+      //Serial.println("DOWN Click");
       clickDownButton();
     }
     else
     {
-      Serial.println("DOWN Hold");
+      //Serial.println("DOWN Hold");
       holdDownButton();
     }
   }
@@ -602,20 +699,20 @@ void IRAM_ATTR clickUpButtonISR()
   {
     upMillis = millis();
     upPressed = true;
-    Serial.println("UP pressed");
+    //Serial.println("UP pressed");
   }
   else if (upPressed && (digitalRead(VOLUME_UP_PIN) == LOW))
   {
     upPressed = false;
-    Serial.println("UP release");
+    //Serial.println("UP release");
     if(millis() - upMillis <= clickTimeOut)
     {
-      Serial.println("UP Click");
+      //Serial.println("UP Click");
       clickUpButton();
     }
     else
     {
-      Serial.println("UP Hold");
+      //Serial.println("UP Hold");
       holdUpButton();
     }
   }
@@ -623,6 +720,8 @@ void IRAM_ATTR clickUpButtonISR()
 #pragma endregion
 
 #pragma region WiFi Callbacks
+byte reconnectCount = 0;
+
 void Wifi_connected(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.println("ESP32 WIFI Connected to Access Point");
   bool lastOnOffState = LEDS_ON;
@@ -638,6 +737,7 @@ void Wifi_connected(WiFiEvent_t event, WiFiEventInfo_t info){
     mainStrip.show();
     delay(100); 
   }
+  reconnectCount = 0;
   showConnected = false;
   LEDS_ON = lastOnOffState;
 }
@@ -649,19 +749,30 @@ void Get_IPAddress(WiFiEvent_t event, WiFiEventInfo_t info){
 }
 
 void Wifi_disconnected(WiFiEvent_t event, WiFiEventInfo_t info){
-  Serial.println("Disconnected from WIFI");
-  Serial.println("Reconnecting...");
-  WiFi.reconnect();
+  
+  if(reconnectCount < 3)
+  {
+    Serial.println("Disconnected from WIFI");
+    Serial.println("Reconnecting...");
+    Serial.println("WIFI ReconnecteCount: " + String(reconnectCount));
+    WiFi.reconnect();
+    reconnectCount++;
+  }
+  else
+  {
+    WiFi.disconnect();
+  }
 }
 #pragma endregion
 
 #pragma region Mqtt messages
 void onMqttMessageReceived(char *topic, byte *payload, unsigned int length)
 {
-  if(String(topic).indexOf("state") != -1)
+  if(String(topic).indexOf("state") != -1 || String(topic).indexOf(device_topic) == -1)
     return;
   Serial.print("Message arrived in topic: ");
   Serial.println(topic);
+  events.send(("Message arrived in topic: " + String(topic)).c_str(), NULL, millis());
   for (int i = 0; i < length; i++) {
      Serial.print((char) payload[i]);
   }
@@ -669,47 +780,88 @@ void onMqttMessageReceived(char *topic, byte *payload, unsigned int length)
   String mqtt_message = "";
   for(int i=0; i<length; i++)
     mqtt_message += (char)payload[i];
-  Serial.println("Readed mqtt message: " + mqtt_message);
-  if(String(topic).indexOf(topicNightLightPower) != -1)
+  LogToSerialAndSendClients("Readed mqtt message: " + mqtt_message);
+
+  if(String(topic).indexOf(topicSetNightLightPower()) != -1)
   {
+    LogToSerialAndSendClients("NightLightPower " + mqtt_message);
     if(mqtt_message == "1")
       setOnNightLight();
     else
       setOffNightLight();
+    return;
   }
-  if(String(topic).indexOf(topicSetBrightnessNightLight) != -1)
+  else if(String(topic).indexOf(topicSetNightLightBrightness()) != -1)
   {
-    Serial.println("SetBrightness " + mqtt_message.toInt());
+    LogToSerialAndSendClients("SetBrightness " + mqtt_message);
     setBrightnessPercent(mqtt_message.toInt());
+    return;
   }
-  else if(String(topic).indexOf(topicFlashLightPower) != -1) 
+  else if(String(topic).indexOf(topicSetNightLightTemperature()) != -1)
+  {
+    LogToSerialAndSendClients("SetTemperature " + mqtt_message);
+    setTemperature(mqtt_message.toInt());
+    return;
+  }
+  else if(String(topic).indexOf(topicSetFlashLightPower()) != -1) 
   {
     if(mqtt_message == "1")
       setOnFlashLight();
     else
-      setOffFlashLight(); 
+      setOffFlashLight();
+    return;
   }
-  else if(String(topic).indexOf(topicSetEffectFlashLight) != -1)
+  else if(String(topic).indexOf(topicSetEffectFlashLight()) != -1)
   {
-    Serial.println("SetEffect " + mqtt_message.toInt());
+    LogToSerialAndSendClients(String("SetEffect " + mqtt_message));
     setEffectIdFlashLight(mqtt_message.toInt());
+    return;
   }
-  else if(String(topic).indexOf(topicReadLightPower) != -1) 
+  else if(String(topic).indexOf(topicSetReadLightPower()) != -1) 
   {
+    LogToSerialAndSendClients(String("ReadLightPower " + mqtt_message));
     if(mqtt_message == "1")
       setOnReadLight(); 
     else
       setOffReadLight();
+    return;
+  }
+  else if(String(topic).indexOf(topicSetWarmChannel()) != -1)
+  {
+    LogToSerialAndSendClients(String("SetWarmChannel " + mqtt_message));
+    SetWarmLevelPercent(mqtt_message.toInt());
+    return;
+  }
+  else if(String(topic).indexOf(topicSetColdChannel()) != -1)
+  {
+    LogToSerialAndSendClients(String("SetColdChannel " + mqtt_message));
+    SetColdLevelPercent(mqtt_message.toInt());
+    return;
+  }
+  else if(String(topic).indexOf(topicSetAdditionalLight()) != -1)
+  {
+    LogToSerialAndSendClients(String("SetAdditionalLight " + mqtt_message));
+    setAdditionalNL(mqtt_message.toInt());
+    return;
   }
 }
 
 void publishStates()
 {
-  mqttClient.publish(topicGetNightLightStatus, String(getNightLightState()).c_str(), retain_flag);
-  mqttClient.publish(topicGetReadLightStatus, String(getReadLightState()).c_str(), retain_flag);
-  mqttClient.publish(topicGetFlashLightStatus, String(getFlashLightState()).c_str(), retain_flag);
-  mqttClient.publish(topicGetNightLightBrightness, String(getBrightnessPercent()).c_str(), retain_flag);
-  mqttClient.publish(topicGetEffectFlashLight, String(getEffectIdFlashLight()).c_str(), retain_flag);
+  mqttClient.publish(topicGetNightLightPower().c_str(), String(getNightLightState()).c_str(), retain_flag);
+  mqttClient.publish(topicGetNightLightBrightness().c_str(), String(getBrightnessPercent()).c_str(), retain_flag);
+  mqttClient.publish(topicGetNightLightTemperature().c_str(), String(getTemperature()).c_str(), retain_flag);
+  
+  mqttClient.publish(topicGetReadLightPower().c_str(), String(getReadLightState()).c_str(), retain_flag);
+  mqttClient.publish(topicGetWarmChannel().c_str(), String(getWarmLevelPercent()).c_str(), retain_flag);
+  mqttClient.publish(topicGetColdChannel().c_str(), String(getColdLevelPercent()).c_str(), retain_flag);
+  mqttClient.publish(topicGetAdditionalLight().c_str(), String(getAdditionalNL()).c_str(), retain_flag);
+
+  mqttClient.publish(topicGetFlashLightPower().c_str(), String(getFlashLightState()).c_str(), retain_flag);
+  mqttClient.publish(topicGetEffectFlashLight().c_str(), String(getEffectIdFlashLight()).c_str(), retain_flag);
+  // mqttClient.publish(topicComboGetPower.c_str(), String(LEDS_ON).c_str(), retain_flag);
+  // mqttClient.publish(topicComboGetMode.c_str(), String(light_mode + 1).c_str(), retain_flag);
+  // mqttClient.publish(topicComboGetBrightness.c_str(), String(brightness).c_str(), retain_flag);
 }
 #pragma endregion
 
@@ -772,8 +924,8 @@ void setup()
   Serial.print("[+] AP Created with IP Gateway ");
   Serial.println(WiFi.softAPIP());     /*Printing the AP IP address*/
 
-  wifi_ssid = EEPROM.readString(SSID_ADDRESS);
-  wifi_password = EEPROM.readString(PASSWORD_ADDRESS);
+  wifi_ssid = EEPROM.readString(WIFI_SSID_ADDRESS);
+  wifi_password = EEPROM.readString(WIFI_PASSWORD_ADDRESS);
 
   WiFi.onEvent(Wifi_connected, ARDUINO_EVENT_WIFI_STA_CONNECTED);
   WiFi.onEvent(Get_IPAddress, ARDUINO_EVENT_WIFI_STA_GOT_IP);
@@ -809,8 +961,8 @@ void setup()
     if (request->hasParam("ssid") && request->hasParam("password")) {
       wifi_ssid = request->getParam("ssid")->value();
       wifi_password = request->getParam("password")->value();
-      EEPROM.writeString(SSID_ADDRESS, wifi_ssid);
-      EEPROM.writeString(PASSWORD_ADDRESS, wifi_password);
+      EEPROM.writeString(WIFI_SSID_ADDRESS, wifi_ssid);
+      EEPROM.writeString(WIFI_PASSWORD_ADDRESS, wifi_password);
       EEPROM.commit();
       WiFi.disconnect();
       WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
@@ -884,10 +1036,42 @@ void setup()
     else
       request->send(400, "text/plain", "Bad request: Bad parameters received");
   });
+  server.on("/update_mqtt", HTTP_GET, [](AsyncWebServerRequest *request){
+    if(request->hasParam("mqtt_client_id") &&
+    request->hasParam("mqtt_server_address") &&
+    request->hasParam("mqtt_server_port") &&
+    request->hasParam("mqtt_server_user") &&
+    request->hasParam("mqtt_server_password"))
+    {
+      events.send("update_mqtt", NULL, millis());
+      device_topic = request->getParam("mqtt_client_id")->value();
+      mqtt_server = request->getParam("mqtt_server_address")->value();
+      mqtt_server_port = request->getParam("mqtt_server_port")->value().toInt();;
+      mqtt_server_user = request->getParam("mqtt_server_user")->value();
+      mqtt_server_password = request->getParam("mqtt_server_password")->value();
+      EEPROM.writeString(DEVICE_TOPIC_ADDRESS, device_topic);
+      EEPROM.writeString(MQTT_SERVER_ADDRESS, mqtt_server);
+      EEPROM.writeShort(MQTT_SERVER_PORT_ADDRESS, mqtt_server_port);
+      EEPROM.writeString(MQTT_SERVER_USER_ADDRESS, mqtt_server_user);
+      EEPROM.writeString(MQTT_SERVER_PASSWORD_ADDRESS, mqtt_server_password);
+      EEPROM.commit();
+      request->send(200, "text/plain", "OK");
+      ESP.restart();
+    }
+    else
+      request->send(400, "text/plain", "Bad request: Bad parameters received");
+  });
   server.on("/setReadBrightness", HTTP_GET, [](AsyncWebServerRequest *request)
   {
 
   });
+  events.onConnect([](AsyncEventSourceClient *client){
+    if(client->lastId()){
+      Serial.printf("Client reconnected! Last message ID that it got is: %u\n", client->lastId());
+    }
+    client->send("hi!", NULL, millis(), 10000);
+  });
+  server.addHandler(&events);
   AsyncElegantOTA.begin(&server);
   server.begin();
 #pragma endregion
@@ -897,62 +1081,61 @@ void setup()
 void loop() 
 {
   #pragma region update settings in EEPROM
+  bool needCommitEeprom = false;
   if(onOffChanged)
   {
     EEPROM.write(ON_OFF_STATE_ADDRESS, LEDS_ON);
-    EEPROM.commit();
+    needCommitEeprom = true;
     onOffChanged = false;
-    publishStates();
   }
   if(lightModeChanged)
   {
     EEPROM.write(MODE_STATE_ADDRESS, light_mode);
-    EEPROM.commit();
+    needCommitEeprom = true;
     lightModeChanged = false;
-    publishStates();
   }
   if(brightnessChanged)
   {
     EEPROM.write(BRIGHTNESS_STATE_ADDRESS, brightness);
-    EEPROM.commit();
+    needCommitEeprom = true;
     brightnessChanged = false;
-    publishStates();
   }
   if(temperatureChanged)
   {
     EEPROM.write(TEMPERATURE_STATE_ADDRESS, temperature);
-    EEPROM.commit();
+    needCommitEeprom = true;
     temperatureChanged = false;
-    publishStates();
   }
   if(effectIdChanged)
   {
     EEPROM.write(EFFECT_ID_ADDRESS, effectId);
-    EEPROM.commit();
+    needCommitEeprom = true;
     effectIdChanged = false;
-    publishStates();
   }
   if(warmChanged)
   {
     EEPROM.write(WARM_ADDRESS, warm_value);
-    EEPROM.commit();
+    needCommitEeprom = true;
     warmChanged = false;
-    publishStates();
   }
   if(coldChanged)
   {
     EEPROM.write(COLD_ADDRESS, cold_value);
-    EEPROM.commit();
+    needCommitEeprom = true;
     coldChanged = false;
-    publishStates();
   }
   if(enableAdditionNightLightChanged)
   {
     EEPROM.write(ADDITION_ENABLE_NIGHTLIGHT_ADDRESS, enableAdditionNightLight);
-    EEPROM.commit();
+    needCommitEeprom = true;
     enableAdditionNightLightChanged = false;
-    publishStates();
   }
+  if(needCommitEeprom)
+  {
+    EEPROM.commit();
+    needCommitEeprom = false;
+    publishStates();
+  } 
 #pragma endregion
 
   #pragma region MQTT Client connect and reconnect
@@ -966,30 +1149,23 @@ void loop()
         #pragma region Init MQTT
         if(!mqttInitialized)
         {
-          Serial.println("MQTT setServer: " + mqtt_server + " port: " + String(mqtt_server_port));
+          LogToSerialAndSendClients("MQTT setServer: " + mqtt_server + " port: " + String(mqtt_server_port));
           mqttClient.setServer(mqtt_server.c_str(), mqtt_server_port);
-          Serial.print("MQTT setCallback");
+          LogToSerialAndSendClients("MQTT setCallback");
           mqttClient.setCallback(onMqttMessageReceived);
           mqttInitialized = true;
         }
         #pragma endregion
-
-        Serial.println("MQTT connecting ClientID: " + mqtt_client_id + " User: " + mqtt_server_user + " Password: " + mqtt_server_password);
-        bool connectionResult = mqttClient.connect(mqtt_client_id.c_str(), mqtt_server_user.c_str(), mqtt_server_password.c_str());
-        Serial.println("MQTT connection result: " + String(connectionResult));
+        String macString = WiFi.macAddress();
+        macString.replace(":", "");
+        LogToSerialAndSendClients("MQTT connecting ClientID: " + mqtt_client_id + "_" + macString + " User: " + mqtt_server_user + " Password: " + mqtt_server_password);
+        bool connectionResult = mqttClient.connect((mqtt_client_id + "_" + macString).c_str(), mqtt_server_user.c_str(), mqtt_server_password.c_str());
+        LogToSerialAndSendClients("MQTT connection result: " + String(connectionResult));
         if(connectionResult)
         {
           bool subscribeResult = false;
-          if(!useTopicPrefix)
-          {
-            subscribeResult = mqttClient.subscribe(topic);
-            Serial.println("Topic: " + String(topic) + " Subcribe result: " + String(subscribeResult));
-          }
-          else
-          {
-            subscribeResult = mqttClient.subscribe((mqtt_topic_prefix + String(topic)).c_str());
-            Serial.println("Topic: " + mqtt_topic_prefix + String(topic) + " Subcribe result: " + String(subscribeResult));
-          }
+          subscribeResult = mqttClient.subscribe(topic().c_str());
+          LogToSerialAndSendClients("Topic: " + String(topic()) + " Subcribe result: " + String(subscribeResult));
         }
       }
       else
@@ -1018,8 +1194,9 @@ void loop()
         offReadLeds();
         break;
       case NIGHT_LIGHT:
-        drawNightLight(temperature, brightness, mainStrip);
         offReadLeds();
+        drawNightLight(temperature, brightness, mainStrip);
+        
         break;
       case READ_MODE:
         if(enableAdditionNightLight)

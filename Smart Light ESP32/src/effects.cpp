@@ -1622,14 +1622,14 @@ void show_fx(Adafruit_NeoPixel &mainStrip, uint8_t effectId)
     case 3: for (int i = 0; i < r * 12; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } color_bounce(mainStrip); } return;
   }
 
-  if(effectId != 10
-    || effectId != 12
-    || effectId != 13
-    || effectId != 14)
-  {
-    setAll(mainStrip, 0, 0, 0);
-    mainStrip.show();
-  }
+  // if(effectId != 10
+  //   || effectId != 12
+  //   || effectId != 13
+  //   || effectId != 14)
+  // {
+  //   setAll(mainStrip, 0, 0, 0);
+  //   mainStrip.show();
+  // }
   thisdelay = 40;
   switch (effectId)
   {
@@ -1664,8 +1664,8 @@ void show_fx(Adafruit_NeoPixel &mainStrip, uint8_t effectId)
     case 14: thisdelay = 80; while(true) /*for (int i = 0; i < r * 6; i++)*/ { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } rwb_march(mainStrip); } return;
   }
   
-  setAll(mainStrip, 0, 0, 0);
-  mainStrip.show();
+  //setAll(mainStrip, 0, 0, 0);
+  //mainStrip.show();
 
   thisdelay = 60; 
   thishue = 95;
@@ -1679,8 +1679,8 @@ void show_fx(Adafruit_NeoPixel &mainStrip, uint8_t effectId)
     case 20: thisdelay = 100; thishue = 180; for (int i = 0; i < r * 4; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } quad_bright_curve(mainStrip); } return;
   }
   thisdelay = 100; thishue = 180;
-  setAll(mainStrip, 0, 0, 0);
-  mainStrip.show();
+  //setAll(mainStrip, 0, 0, 0);
+  //mainStrip.show();
   
   switch (effectId)
   {

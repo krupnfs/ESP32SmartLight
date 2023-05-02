@@ -8,8 +8,16 @@ uint8_t calculateBrightness(uint8_t brightness)
   return brightness * 32 - 1;
 }
 
+byte prevDrbBrightness = -1;
+byte prevDrbTemperature = -1;
+
 void drawBrightness(uint8_t temperature, uint8_t brightness, Adafruit_NeoPixel &volumeStrip)
 {
+  if(prevDrbBrightness == brightness && prevDrbTemperature == temperature)
+    return;
+  Serial.println("UpdateBrightness");
+  prevDrbBrightness = brightness;
+  prevDrbTemperature = temperature;
   clearLedStrip(volumeStrip);
   uint32_t initTemperature = 0;
   switch (temperature)
@@ -49,8 +57,16 @@ void drawBrightness(uint8_t temperature, uint8_t brightness, Adafruit_NeoPixel &
   volumeStrip.show();
 }
 
+byte prevDrtBrightness = -1;
+byte prevDrtTemperature = -1;
+
 void drawTemperature(uint8_t temperature, uint8_t brightness, Adafruit_NeoPixel &volumeStrip)
 {
+  if(prevDrtBrightness == brightness && prevDrtTemperature == temperature)
+    return;
+  Serial.println("UpdateTemperature");
+  prevDrtBrightness = brightness;
+  prevDrtTemperature = temperature;
   clearLedStrip(volumeStrip);
   if(temperature != 0)
     volumeStrip.setPixelColor(0, Candle);

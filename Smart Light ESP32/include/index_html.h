@@ -36,26 +36,26 @@ const char index_html[] PROGMEM = R"rawliteral(
 		<table align="center" class="settingstable panel">
 			<tr>
 				<td class="texttd"><b>Название устройства (лат.):</b></td>
-				<td class="texttd"><input type="text" id="mqtt_client_id" value="esp32_totoro" size="20" maxlength="32"></td>
+				<td class="texttd"><input type="text" id="device_topic" value="%DEVICE_TOPIC%" size="20" maxlength="32"></td>
 			</tr>
 			<tr>
 				<td class="texttd"><font size="2"><i>Добавляется к названию прослушиваемых топиков</i></font></td>
 			</tr>
 			<tr>
 				<td class="texttd"><b>Сервер:</b></td>
-				<td class="texttd"><input type="text" id="mqtt_server" value="m4.wqtt.ru" size="20" maxlength="32"></td>
+				<td class="texttd"><input type="text" id="mqtt_server" value="%MQTT_SERVER%" size="20" maxlength="32"></td>
 			</tr>
 			<tr>
 				<td class="texttd"><b>Порт сервера:</b></td>
-				<td class="texttd"><input type="text" id="mqtt_server" value="7174" size="20" maxlength="5"></td>
+				<td class="texttd"><input type="text" id="mqtt_server_port" value="%MQTT_SERVER_PORT%" size="20" maxlength="5"></td>
 			</tr>
 			<tr>
 				<td class="texttd"><b>Пользователь:</b></td>
-				<td class="texttd"><input type="text" id="mqtt_user" value="u_M31GZB" size="20" maxlength="32"></td>
+				<td class="texttd"><input type="text" id="mqtt_user" value="%MQTT_USER%" size="20" maxlength="32"></td>
 			</tr>
 			<tr>
 				<td class="texttd"><b>Пароль:</b></td>
-				<td class="texttd"><input type="password" id="mqtt_pass" value="pXtRs7BF" size="20" maxlength="32"></td>
+				<td class="texttd"><input type="password" id="mqtt_pass" value="%MQTT_PASSWORD%" size="20" maxlength="32"></td>
 			</tr>
 			<tr>
 				<td class="texttd"><b>Статус подключения:</b></td>
@@ -163,6 +163,9 @@ const char index_html[] PROGMEM = R"rawliteral(
     </body>
 )rawliteral";
 #pragma endregion
+
+// <h3>Консоль MQTT:</h3>
+// 		<textarea rows="10" cols="60" id="mqtt_console"></textarea>
 
 #pragma region CSS
 const char index_css[] PROGMEM = R"rawliteral(
@@ -421,6 +424,23 @@ const char index_js[] PROGMEM = R"rawliteral(
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script type="text/javascript">
 
+if (!!window.EventSource) {
+ var source = new EventSource('/events');
+ 
+ source.addEventListener('open', function(e) {
+  console.log("Events got Connected!");
+ }, false);
+ source.addEventListener('error', function(e) {
+  if (e.target.readyState != EventSource.OPEN) {
+    console.log("Events got Disconnected!");
+  }
+ }, false);
+ 
+ source.addEventListener('message', function(e) {
+  console.log("message", e.data);
+ }, false);
+}
+
 	function setWarmLevel(value)
 	{
 		var xhr = new XMLHttpRequest();
@@ -512,6 +532,22 @@ const char index_js[] PROGMEM = R"rawliteral(
 		xhr.open("GET", "/getEffectId", true);
 		xhr.send();
 	}
+
+	function updateMQTTSettings(){
+		var mqtt_client_id = document.getElementById("device_topic").value;
+		var mqtt_server_address = document.getElementById("mqtt_server").value;
+		var mqtt_server_port = document.getElementById("mqtt_server_port").value;
+		var mqtt_server_user = document.getElementById("mqtt_user").value;
+		var mqtt_server_password = document.getElementById("mqtt_pass").value;
+		var xhr = new XMLHttpRequest();
+		xhr.onload = function() {
+			if(xhr.status == 400)
+				alert(xhr.contentText);
+		}
+		xhr.open("GET", "/update_mqtt?mqtt_client_id="+mqtt_client_id+"&mqtt_server_address="+mqtt_server_address+"&mqtt_server_port="+mqtt_server_port+"&mqtt_server_user="+mqtt_server_user+"&mqtt_server_password="+mqtt_server_password, true);
+		xhr.send();
+	}
+
 	function updateWiFiSettings() {
 		var ssid_string = document.getElementById("ssid").value;
 		var password_string = document.getElementById("pass").value;
