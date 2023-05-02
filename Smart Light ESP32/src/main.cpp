@@ -1196,7 +1196,6 @@ void loop()
       case NIGHT_LIGHT:
         offReadLeds();
         drawNightLight(temperature, brightness, mainStrip);
-        
         break;
       case READ_MODE:
         if(enableAdditionNightLight)
