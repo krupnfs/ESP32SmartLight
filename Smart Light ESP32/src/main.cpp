@@ -342,7 +342,7 @@ void setEffectId(int value)
   if (effectId < 0)
     effectId = 0;
   effectIdChanged = true;
-    needBreakEffect = true;
+  needBreakEffect = true;
 }
 
 void decrementEffect()
@@ -623,6 +623,10 @@ void holdUpButton()
     enableAdditionNightLight = !enableAdditionNightLight;
     enableAdditionNightLightChanged = true;
   }
+  if(light_mode == RAINBOW_MODE)
+  {
+    esp_restart();
+  }
 }
 
 void holdOnOff()
@@ -859,9 +863,6 @@ void publishStates()
 
   mqttClient.publish(topicGetFlashLightPower().c_str(), String(getFlashLightState()).c_str(), retain_flag);
   mqttClient.publish(topicGetEffectFlashLight().c_str(), String(getEffectIdFlashLight()).c_str(), retain_flag);
-  // mqttClient.publish(topicComboGetPower.c_str(), String(LEDS_ON).c_str(), retain_flag);
-  // mqttClient.publish(topicComboGetMode.c_str(), String(light_mode + 1).c_str(), retain_flag);
-  // mqttClient.publish(topicComboGetBrightness.c_str(), String(brightness).c_str(), retain_flag);
 }
 #pragma endregion
 
@@ -1078,6 +1079,8 @@ void setup()
 
 }
 
+int randomEffectId = 0;
+
 void loop() 
 {
   #pragma region update settings in EEPROM
@@ -1188,8 +1191,11 @@ void loop()
     switch (light_mode)
     {
       case RAINBOW_MODE:
-        Serial.print("show_fx. effectId = ");
-        Serial.println(effectId);
+        //LogToSerialAndSendClients("show_fx. effectId = " + String(effectId));
+        if(randomEffectEnabled)
+          randomEffectId = random(0, 28);
+        else
+          randomEffectId = effectId;
         show_fx(mainStrip, effectId);
         offReadLeds();
         break;

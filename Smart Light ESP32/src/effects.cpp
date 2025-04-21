@@ -676,6 +676,8 @@ void white_temps(Adafruit_NeoPixel &mainStrip) {                            //-m
 
 void sin_bright_wave(Adafruit_NeoPixel &mainStrip) {        //-m19-BRIGHTNESS SINE WAVE
   for (int i = 0; i < NUM_MAIN_LEDS; i++ ) {
+    if(needBreakEffect)
+      return;
     tcount = tcount + .1;
     if (tcount > 3.14) {
       tcount = 0.0;
@@ -684,8 +686,8 @@ void sin_bright_wave(Adafruit_NeoPixel &mainStrip) {        //-m19-BRIGHTNESS SI
     //leds[i] = CHSV(thishue, thissat, ibright);
     mainStrip.setPixelColor(i, mainStrip.ColorHSV(convert_8bit_hue_to_16bit(thishue), thissat, ibright));
     //LEDS.show(); 
-  mainStrip.show();
-    if (safeDelay(thisdelay)) return;
+    mainStrip.show();
+    if (safeDelay(thisdelay) || needBreakEffect) return;
   }
 }
 
@@ -1635,7 +1637,7 @@ void show_fx(Adafruit_NeoPixel &mainStrip, uint8_t effectId)
   {
     case 4: for (int i = 0; i < r * 12; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } color_bounceFADE(mainStrip); } return;
     case 5: for (int i = 0; i < r * 6; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } ems_lightsONE(mainStrip); } return;
-    case 6: for (int i = 0; i < r * 5; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } ems_lightsALL(mainStrip); } return;
+    case 6: setAll(mainStrip, 0, 0, 0); mainStrip.show(); for (int i = 0; i < r * 5; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } ems_lightsALL(mainStrip); } return;
   }
 
   thishue = 160; thissat = 50;
@@ -1671,12 +1673,12 @@ void show_fx(Adafruit_NeoPixel &mainStrip, uint8_t effectId)
   thishue = 95;
   switch (effectId)
   {
-    case 15: for (int i = 0; i < r * 15; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } radiation(mainStrip); } return;
+    case 15: setAll(mainStrip, 0, 0, 0); mainStrip.show(); for (int i = 0; i < r * 15; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } radiation(mainStrip); } return;
     case 16: for (int i = 0; i < r * 15; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } color_loop_vardelay(mainStrip); }return;
     case 17: for (int i = 0; i < r * 5; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } white_temps(mainStrip); } return;
-    case 18: thisdelay = 35; thishue = 180; for (int i = 0; i < r; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } sin_bright_wave(mainStrip); } return;
-    case 19: thisdelay = 100; thishue = 0; for (int i = 0; i < r * 5; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } pop_horizontal(mainStrip); } return;
-    case 20: thisdelay = 100; thishue = 180; for (int i = 0; i < r * 4; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } quad_bright_curve(mainStrip); } return;
+    //case 18: setAll(mainStrip, 0, 0, 0); mainStrip.show(); thisdelay = 35; thishue = 180; for (int i = 0; i < r; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } sin_bright_wave(mainStrip); } return;
+    case 18: thisdelay = 100; thishue = 0; for (int i = 0; i < r * 5; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } pop_horizontal(mainStrip); } return;
+    case 19: setAll(mainStrip, 0, 0, 0); mainStrip.show(); thisdelay = 100; thishue = 180; for (int i = 0; i < r * 4; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } quad_bright_curve(mainStrip); } return;
   }
   thisdelay = 100; thishue = 180;
   //setAll(mainStrip, 0, 0, 0);
@@ -1684,13 +1686,13 @@ void show_fx(Adafruit_NeoPixel &mainStrip, uint8_t effectId)
   
   switch (effectId)
   {
-    case 21: for (int i = 0; i < r * 3; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } flame(mainStrip); } return;
-    case 22: thisdelay = 50; for (int i = 0; i < r * 10; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } pacman(mainStrip); } return;
-    case 23: thisdelay = 50; thisstep = 15; for (int i = 0; i < r * 12; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } rainbow_vertical(mainStrip); } return;
-    case 24: thisdelay = 35; for (int i = 0; i < r * 10; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } random_color_pop(mainStrip); } return;
-    case 25: thisdelay = 35; for (int i = 0; i < r / 2; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } ems_lightsSTROBE(mainStrip); } return;
-    case 26: thisdelay = 50; for (int i = 0; i < r * 10; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; }rgb_propeller(mainStrip); } return;
-    case 27: thisdelay = 100; thishue = 0; for (int i = 0; i < r * 3; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } kitt(mainStrip); } return;
-    case 28: thisdelay = 30; thishue = 95; for (int i = 0; i < r * 25; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } matrix(mainStrip); }
+    case 20: for (int i = 0; i < r * 3; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } flame(mainStrip); } return;
+    case 21: thisdelay = 50; for (int i = 0; i < r * 10; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } pacman(mainStrip); } return;
+    case 22: thisdelay = 50; thisstep = 15; for (int i = 0; i < r * 12; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } rainbow_vertical(mainStrip); } return;
+    case 23: thisdelay = 35; for (int i = 0; i < r * 10; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } random_color_pop(mainStrip); } return;
+    case 24: thisdelay = 35; for (int i = 0; i < r / 2; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } ems_lightsSTROBE(mainStrip); } return;
+    case 25: thisdelay = 50; for (int i = 0; i < r * 10; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; }rgb_propeller(mainStrip); } return;
+    case 26: thisdelay = 100; thishue = 0; for (int i = 0; i < r * 3; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } kitt(mainStrip); } return;
+    case 27: thisdelay = 30; thishue = 95; for (int i = 0; i < r * 25; i++) { mqttClient.loop(); if(needBreakEffect) { needBreakEffect = false; break; } matrix(mainStrip); }
   }  
 }
