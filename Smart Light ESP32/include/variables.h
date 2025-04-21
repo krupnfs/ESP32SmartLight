@@ -54,7 +54,7 @@ uint8_t effectId = 0;
 String wifi_ssid = "";
 String wifi_password ="";
 
-String mqtt_client_id = "";
+String mqtt_client_id = "esp32sl";
 String mqtt_server = "";
 uint16_t mqtt_server_port = 0;
 String mqtt_server_user = "";
