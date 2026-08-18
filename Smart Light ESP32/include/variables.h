@@ -62,3 +62,23 @@ String mqtt_server_password = "";
 
 bool useTopicPrefix = false;
 String mqtt_topic_prefix = "/" + mqtt_server_user + "/";
+
+// WiFi reconnect variables — infinite attempts with exponential backoff
+unsigned long wifiReconnectTimer = 0;
+unsigned long lastWiFiDisconnectTime = 0;
+const unsigned int WIFI_RECONNECT_CHECK_INTERVAL = 5000;  // Check every 5s
+bool wifiNeedsReconnect = false;
+int wifiReconnectAttempts = 0;                              // For backoff calculation only, no limit
+unsigned long wifiLastAttemptTime = 0;                      // For exponential backoff
+
+// WiFi reconnect animation
+unsigned long wifiAnimationTimer = 0;
+int wifiAnimationStep = 0;
+bool wifiAnimationActive = false;
+const unsigned int WIFI_ANIMATION_INTERVAL = 100;
+
+// Watchdog (initialized in setup with esp_task_wdt_init)
+
+// Read mode non-blocking timers
+unsigned long readLightWarmTimer = 0;
+unsigned long readLightColdTimer = 0;

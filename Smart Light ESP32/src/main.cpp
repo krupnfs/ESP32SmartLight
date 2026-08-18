@@ -724,47 +724,76 @@ void IRAM_ATTR clickUpButtonISR()
 #pragma endregion
 
 #pragma region WiFi Callbacks
-byte reconnectCount = 0;
+// wifiNeedsReconnect defined in variables.h
 
 void Wifi_connected(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.println("ESP32 WIFI Connected to Access Point");
-  bool lastOnOffState = LEDS_ON;
-  LEDS_ON = false;
+  wifiNeedsReconnect = false;
+  wifiReconnectAttempts = 0;
+  wifiLastAttemptTime = 0;
+  // Запускаем анимацию без блокировки
   showConnected = true;
   needBreakEffect = true;
-  for (int i = 0; i < 10; i++)
-  {
-    mainStrip.fill(mainStrip.ColorHSV(21000,255,15), 0, NUM_MAIN_LEDS);
-    mainStrip.show();
-    delay(100);
-    mainStrip.clear();
-    mainStrip.show();
-    delay(100); 
-  }
-  reconnectCount = 0;
-  showConnected = false;
-  LEDS_ON = lastOnOffState;
+  wifiAnimationActive = true;
+  wifiAnimationStep = 0;
+  wifiAnimationTimer = millis();
 }
 
 void Get_IPAddress(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.println("WIFI Connected!");
-  Serial.println("IP address of Connected WIFI: ");
+  Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+  wifiNeedsReconnect = false;
+  wifiReconnectAttempts = 0;
+  wifiLastAttemptTime = 0;
 }
 
 void Wifi_disconnected(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("Disconnected from WIFI");
+  lastWiFiDisconnectTime = millis();
+  wifiNeedsReconnect = true;
+  wifiReconnectAttempts = 0;
+  wifiLastAttemptTime = 0;
+  // НЕ пытаемся переподключаться здесь — это делает loop()
+}
+
+void Wifi_lost_ip(WiFiEvent_t event, WiFiEventInfo_t info){
+  Serial.println("WiFi IP lost — network unreachable even with IP");
+  wifiNeedsReconnect = true;
+  wifiReconnectAttempts = 0;
+  wifiLastAttemptTime = 0;
+}
+
+// Неблокируемая анимация при подключении WiFi
+void updateWiFiAnimation()
+{
+  if(!wifiAnimationActive) return;
   
-  if(reconnectCount < 3)
+  unsigned long currentMillis = millis();
+  if(currentMillis - wifiAnimationTimer >= WIFI_ANIMATION_INTERVAL)
   {
-    Serial.println("Disconnected from WIFI");
-    Serial.println("Reconnecting...");
-    Serial.println("WIFI ReconnecteCount: " + String(reconnectCount));
-    WiFi.reconnect();
-    reconnectCount++;
-  }
-  else
-  {
-    WiFi.disconnect();
+    wifiAnimationTimer = currentMillis;
+    
+    if(wifiAnimationStep % 2 == 0)
+    {
+      mainStrip.fill(mainStrip.ColorHSV(21000,255,15), 0, NUM_MAIN_LEDS);
+      mainStrip.show();
+    }
+    else
+    {
+      mainStrip.clear();
+      mainStrip.show();
+    }
+    
+    wifiAnimationStep++;
+    
+    if(wifiAnimationStep >= 20)  // 10 cycles * 2 steps = 20
+    {
+      wifiAnimationActive = false;
+      showConnected = false;
+      mainStrip.clear();
+      mainStrip.show();
+    }
   }
 }
 #pragma endregion
@@ -931,6 +960,7 @@ void setup()
   WiFi.onEvent(Wifi_connected, ARDUINO_EVENT_WIFI_STA_CONNECTED);
   WiFi.onEvent(Get_IPAddress, ARDUINO_EVENT_WIFI_STA_GOT_IP);
   WiFi.onEvent(Wifi_disconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+  WiFi.onEvent(Wifi_lost_ip, ARDUINO_EVENT_WIFI_STA_LOST_IP);
 
   Serial.println("WiFi SSID: " + wifi_ssid);
   if(wifi_ssid != "" && wifi_ssid.length() < 33)
@@ -1077,12 +1107,58 @@ void setup()
   server.begin();
 #pragma endregion
 
+  // Initialize watchdog
+  esp_task_wdt_init(15, true);  // 15s timeout, panic on overflow
+  esp_task_wdt_reset();
 }
 
 int randomEffectId = 0;
 
 void loop() 
 {
+  // Feed watchdog
+  esp_task_wdt_reset();
+  
+  // WiFi reconnect logic — exponential backoff
+  if(WiFi.status() != WL_CONNECTED)
+  {
+    unsigned long currentMillis = millis();
+    
+    // Exponential backoff: 5s -> 10s -> 20s -> 30s (max), infinite attempts
+    unsigned long backoffInterval = 5000UL * (1UL << min(wifiReconnectAttempts, 3));
+    if(backoffInterval > 30000) backoffInterval = 30000;
+    
+    if(currentMillis - wifiLastAttemptTime >= backoffInterval)
+    {
+      wifiLastAttemptTime = currentMillis;
+      wifiReconnectAttempts++;
+      
+      Serial.print("WiFi reconnect attempt #");
+      Serial.println(wifiReconnectAttempts);
+      Serial.print("Backoff: ");
+      Serial.print(backoffInterval);
+      Serial.println("ms");
+      
+      if(wifi_ssid != "" && wifi_ssid.length() < 33)
+      {
+        WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
+      }
+    }
+  }
+  else if(wifiNeedsReconnect)
+  {
+    // WiFi восстановился
+    Serial.print("WiFi reconnected successfully! Attempts: ");
+    Serial.println(wifiReconnectAttempts);
+    wifiReconnectAttempts = 0;
+    wifiLastAttemptTime = 0;
+    wifiNeedsReconnect = false;
+    lastWiFiDisconnectTime = 0;
+  }
+  
+  // WiFi animation (non-blocking)
+  updateWiFiAnimation();
+
   #pragma region update settings in EEPROM
   bool needCommitEeprom = false;
   if(onOffChanged)
@@ -1147,6 +1223,9 @@ void loop()
   {
     if(WiFi.status() == WL_CONNECTED)
     {
+      // Feed watchdog before MQTT connect
+      esp_task_wdt_reset();
+      
       if(!mqttClient.connected())
       { 
         #pragma region Init MQTT
@@ -1181,7 +1260,6 @@ void loop()
       }
     }
   }
-  #pragma endregion
   
   #pragma region Main cicle work lamp
   standbyLedsUpdate();
@@ -1217,17 +1295,24 @@ void loop()
           clearLedStrips(mainStrip, volumeStrip);
           additionalLightShowing = false;
         }
-        if(!readLightWarmShowing)
+        // Неблокирующая установка каналов с помощью таймера
+        if(millis() - readLightWarmTimer >= 50)  // Разделяем команды по времени
         {
-          delay(100);
-          ledcWrite(LED_WARM_CHANNEL, 256 / 8 * warm_value);
-          readLightWarmShowing = true;
+          if(!readLightWarmShowing)
+          {
+            ledcWrite(LED_WARM_CHANNEL, 256 / 8 * warm_value);
+            readLightWarmShowing = true;
+          }
+          readLightWarmTimer = millis();
         }
-        if(!readLightColdShowing)
+        if(millis() - readLightColdTimer >= 50)
         {
-          delay(100);
-          ledcWrite(LED_COLD_CHANNEL, 256 / 8 * cold_value);
-          readLightColdShowing = true;
+          if(!readLightColdShowing)
+          {
+            ledcWrite(LED_COLD_CHANNEL, 256 / 8 * cold_value);
+            readLightColdShowing = true;
+          }
+          readLightColdTimer = millis();
         }
         break;
     }
@@ -1242,4 +1327,5 @@ void loop()
       clearLedStrips(mainStrip, volumeStrip);
   }
   #pragma endregion
-}
+}  // end loop()
+#pragma endregion
