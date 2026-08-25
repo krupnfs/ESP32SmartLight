@@ -731,12 +731,16 @@ void Wifi_connected(WiFiEvent_t event, WiFiEventInfo_t info){
   wifiNeedsReconnect = false;
   wifiReconnectAttempts = 0;
   wifiLastAttemptTime = 0;
-  // Запускаем анимацию без блокировки
-  showConnected = true;
-  needBreakEffect = true;
-  wifiAnimationActive = true;
-  wifiAnimationStep = 0;
-  wifiAnimationTimer = millis();
+  // Анимация показывается ТОЛЬКО при первом подключении после старта
+  if(wifiFirstConnectAfterBoot)
+  {
+    wifiFirstConnectAfterBoot = false;
+    showConnected = true;
+    needBreakEffect = true;
+    wifiAnimationActive = true;
+    wifiAnimationStep = 0;
+    wifiAnimationTimer = millis();
+  }
 }
 
 void Get_IPAddress(WiFiEvent_t event, WiFiEventInfo_t info){
@@ -962,6 +966,7 @@ void setup()
   WiFi.onEvent(Wifi_disconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.onEvent(Wifi_lost_ip, ARDUINO_EVENT_WIFI_STA_LOST_IP);
 
+  wifiFirstConnectAfterBoot = true;
   Serial.println("WiFi SSID: " + wifi_ssid);
   if(wifi_ssid != "" && wifi_ssid.length() < 33)
     WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());

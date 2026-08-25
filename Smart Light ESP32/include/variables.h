@@ -70,6 +70,7 @@ const unsigned int WIFI_RECONNECT_CHECK_INTERVAL = 5000;  // Check every 5s
 bool wifiNeedsReconnect = false;
 int wifiReconnectAttempts = 0;                              // For backoff calculation only, no limit
 unsigned long wifiLastAttemptTime = 0;                      // For exponential backoff
+bool wifiFirstConnectAfterBoot = true;                      // Show animation only once after boot
 
 // WiFi reconnect animation
 unsigned long wifiAnimationTimer = 0;
