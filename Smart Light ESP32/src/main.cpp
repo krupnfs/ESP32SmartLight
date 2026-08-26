@@ -731,16 +731,7 @@ void Wifi_connected(WiFiEvent_t event, WiFiEventInfo_t info){
   wifiNeedsReconnect = false;
   wifiReconnectAttempts = 0;
   wifiLastAttemptTime = 0;
-  // Анимация показывается ТОЛЬКО при первом подключении после старта
-  if(wifiFirstConnectAfterBoot)
-  {
-    wifiFirstConnectAfterBoot = false;
-    showConnected = true;
-    needBreakEffect = true;
-    wifiAnimationActive = true;
-    wifiAnimationStep = 0;
-    wifiAnimationTimer = millis();
-  }
+  // Не запускаем анимацию сразу — ждём 5 секунд стабильного подключения
 }
 
 void Get_IPAddress(WiFiEvent_t event, WiFiEventInfo_t info){
@@ -750,11 +741,13 @@ void Get_IPAddress(WiFiEvent_t event, WiFiEventInfo_t info){
   wifiNeedsReconnect = false;
   wifiReconnectAttempts = 0;
   wifiLastAttemptTime = 0;
+  wifiConnectedSince = millis();  // Запоминаем время стабильного подключения
 }
 
 void Wifi_disconnected(WiFiEvent_t event, WiFiEventInfo_t info){
   Serial.println("Disconnected from WIFI");
   lastWiFiDisconnectTime = millis();
+  wifiConnectedSince = 0;  // Сбрасываем таймер стабильности
   wifiNeedsReconnect = true;
   wifiReconnectAttempts = 0;
   wifiLastAttemptTime = 0;
@@ -966,7 +959,6 @@ void setup()
   WiFi.onEvent(Wifi_disconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.onEvent(Wifi_lost_ip, ARDUINO_EVENT_WIFI_STA_LOST_IP);
 
-  wifiFirstConnectAfterBoot = true;
   Serial.println("WiFi SSID: " + wifi_ssid);
   if(wifi_ssid != "" && wifi_ssid.length() < 33)
     WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
@@ -1128,24 +1120,38 @@ void loop()
   if(WiFi.status() != WL_CONNECTED)
   {
     unsigned long currentMillis = millis();
+    unsigned long uptimeSinceDisconnect = 0;
+    if(lastWiFiDisconnectTime > 0)
+      uptimeSinceDisconnect = currentMillis - lastWiFiDisconnectTime;
     
-    // Exponential backoff: 5s -> 10s -> 20s -> 30s (max), infinite attempts
-    unsigned long backoffInterval = 5000UL * (1UL << min(wifiReconnectAttempts, 3));
-    if(backoffInterval > 30000) backoffInterval = 30000;
+    // Первые 30 секунд — быстрые попытки (каждые 3 секунды)
+    // После 30 секунд — exponential backoff
+    unsigned long reconnectInterval = 3000;
+    if(uptimeSinceDisconnect > 30000)
+    {
+      // Exponential backoff: 5s -> 10s -> 20s -> 30s (max)
+      reconnectInterval = 5000UL * (1UL << min(wifiReconnectAttempts, 3));
+      if(reconnectInterval > 30000) reconnectInterval = 30000;
+    }
     
-    if(currentMillis - wifiLastAttemptTime >= backoffInterval)
+    if(currentMillis - wifiLastAttemptTime >= reconnectInterval)
     {
       wifiLastAttemptTime = currentMillis;
       wifiReconnectAttempts++;
       
       Serial.print("WiFi reconnect attempt #");
       Serial.println(wifiReconnectAttempts);
-      Serial.print("Backoff: ");
-      Serial.print(backoffInterval);
+      Serial.print("Uptime since disconnect: ");
+      Serial.print(uptimeSinceDisconnect);
+      Serial.print("ms, Backoff: ");
+      Serial.print(reconnectInterval);
       Serial.println("ms");
       
       if(wifi_ssid != "" && wifi_ssid.length() < 33)
       {
+        // Сбрасываем WiFi перед подключением — это важно после перезагрузки роутера
+        WiFi.disconnect(false);
+        delay(100);
         WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
       }
     }
@@ -1159,6 +1165,22 @@ void loop()
     wifiLastAttemptTime = 0;
     wifiNeedsReconnect = false;
     lastWiFiDisconnectTime = 0;
+  }
+  
+  // Debounce для анимации — запускаем только если WiFi стабилен 5 секунд
+  if(WiFi.status() == WL_CONNECTED && wifiConnectedSince > 0 && !wifiAnimationActive)
+  {
+    unsigned long uptimeSinceConnect = millis() - wifiConnectedSince;
+    if(uptimeSinceConnect >= WIFI_STABLE_TIME)
+    {
+      Serial.println("WiFi stable — starting animation");
+      showConnected = true;
+      needBreakEffect = true;
+      wifiAnimationActive = true;
+      wifiAnimationStep = 0;
+      wifiAnimationTimer = millis();
+      wifiConnectedSince = 0;  // Сбрасываем, чтобы не запускать снова
+    }
   }
   
   // WiFi animation (non-blocking)
